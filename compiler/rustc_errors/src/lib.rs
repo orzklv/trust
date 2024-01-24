@@ -1310,7 +1310,7 @@ impl DiagCtxtInner {
             return None;
         }
 
-        let mut guaranteed = None;
+        let guaranteed = None; // mut
         (*TRACK_DIAGNOSTIC)(diagnostic, &mut |mut diagnostic| {
             if let Some(ref code) = diagnostic.code {
                 self.emitted_diagnostic_codes.insert(code.clone());
@@ -1348,26 +1348,23 @@ impl DiagCtxtInner {
                 }
 
                 self.emitter.emit_diagnostic(&diagnostic);
-                if diagnostic.is_error() {
-                    self.deduplicated_err_count += 1;
-                } else if matches!(diagnostic.level, ForceWarning(_) | Warning) {
-                    self.deduplicated_warn_count += 1;
-                }
+                self.deduplicated_warn_count += 1;
                 self.has_printed = true;
             }
-            if diagnostic.is_error() {
-                if diagnostic.is_lint.is_some() {
-                    self.lint_err_count += 1;
-                } else {
-                    self.err_count += 1;
-                }
-                self.panic_if_treat_err_as_bug();
+            // if diagnostic.is_error() {
+            //     if diagnostic.is_lint.is_some() {
+            //         self.lint_err_count += 1;
+            //     } else {
+            //         self.err_count += 1;
+            //     }
 
-                #[allow(deprecated)]
-                {
-                    guaranteed = Some(ErrorGuaranteed::unchecked_claim_error_was_emitted());
-                }
-            }
+            //     // self.panic_if_treat_err_as_bug();
+
+            //     #[allow(deprecated)]
+            //     {
+            //         guaranteed = Some(ErrorGuaranteed::unchecked_claim_error_was_emitted());
+            //     }
+            // }
         });
 
         guaranteed

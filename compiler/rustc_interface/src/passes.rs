@@ -1,3 +1,6 @@
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+
 use crate::errors;
 use crate::interface::{Compiler, Result};
 use crate::proc_macro_decls;
@@ -690,225 +693,225 @@ pub fn create_global_ctxt<'tcx>(
 /// Runs the type-checking, region checking and other miscellaneous analysis
 /// passes on the crate.
 fn analysis(tcx: TyCtxt<'_>, (): ()) -> Result<()> {
-    rustc_passes::hir_id_validator::check_crate(tcx);
+    // rustc_passes::hir_id_validator::check_crate(tcx);
 
-    let sess = tcx.sess;
+    // let sess = tcx.sess;
 
-    sess.time("misc_checking_1", || {
-        parallel!(
-            {
-                sess.time("looking_for_entry_point", || tcx.ensure().entry_fn(()));
+    // sess.time("misc_checking_1", || {
+    //     parallel!(
+    //         {
+    //             sess.time("looking_for_entry_point", || tcx.ensure().entry_fn(()));
 
-                sess.time("looking_for_derive_registrar", || {
-                    tcx.ensure().proc_macro_decls_static(())
-                });
+    //             sess.time("looking_for_derive_registrar", || {
+    //                 tcx.ensure().proc_macro_decls_static(())
+    //             });
 
-                CStore::from_tcx(tcx).report_unused_deps(tcx);
-            },
-            {
-                tcx.hir().par_for_each_module(|module| {
-                    tcx.ensure().check_mod_loops(module);
-                    tcx.ensure().check_mod_attrs(module);
-                    tcx.ensure().check_mod_naked_functions(module);
-                    tcx.ensure().check_mod_unstable_api_usage(module);
-                    tcx.ensure().check_mod_const_bodies(module);
-                });
-            },
-            {
-                sess.time("unused_lib_feature_checking", || {
-                    rustc_passes::stability::check_unused_or_stable_features(tcx)
-                });
-            },
-            {
-                // We force these queries to run,
-                // since they might not otherwise get called.
-                // This marks the corresponding crate-level attributes
-                // as used, and ensures that their values are valid.
-                tcx.ensure().limits(());
-                tcx.ensure().stability_index(());
-            }
-        );
-    });
+    //             CStore::from_tcx(tcx).report_unused_deps(tcx);
+    //         },
+    //         {
+    //             tcx.hir().par_for_each_module(|module| {
+    //                 tcx.ensure().check_mod_loops(module);
+    //                 tcx.ensure().check_mod_attrs(module);
+    //                 tcx.ensure().check_mod_naked_functions(module);
+    //                 tcx.ensure().check_mod_unstable_api_usage(module);
+    //                 tcx.ensure().check_mod_const_bodies(module);
+    //             });
+    //         },
+    //         {
+    //             sess.time("unused_lib_feature_checking", || {
+    //                 rustc_passes::stability::check_unused_or_stable_features(tcx)
+    //             });
+    //         },
+    //         {
+    //             // We force these queries to run,
+    //             // since they might not otherwise get called.
+    //             // This marks the corresponding crate-level attributes
+    //             // as used, and ensures that their values are valid.
+    //             tcx.ensure().limits(());
+    //             tcx.ensure().stability_index(());
+    //         }
+    //     );
+    // });
 
-    // passes are timed inside typeck
-    rustc_hir_analysis::check_crate(tcx)?;
+    // // passes are timed inside typeck
+    // rustc_hir_analysis::check_crate(tcx)?;
 
-    sess.time("MIR_borrow_checking", || {
-        tcx.hir().par_body_owners(|def_id| {
-            // Run unsafety check because it's responsible for stealing and
-            // deallocating THIR.
-            tcx.ensure().check_unsafety(def_id);
-            tcx.ensure().mir_borrowck(def_id)
-        });
-    });
+    // sess.time("MIR_borrow_checking", || {
+    //     tcx.hir().par_body_owners(|def_id| {
+    //         // Run unsafety check because it's responsible for stealing and
+    //         // deallocating THIR.
+    //         tcx.ensure().check_unsafety(def_id);
+    //         tcx.ensure().mir_borrowck(def_id)
+    //     });
+    // });
 
-    sess.time("MIR_effect_checking", || {
-        for def_id in tcx.hir().body_owners() {
-            if !tcx.sess.opts.unstable_opts.thir_unsafeck {
-                rustc_mir_transform::check_unsafety::check_unsafety(tcx, def_id);
-            }
-            tcx.ensure().has_ffi_unwind_calls(def_id);
+    // sess.time("MIR_effect_checking", || {
+    //     for def_id in tcx.hir().body_owners() {
+    //         if !tcx.sess.opts.unstable_opts.thir_unsafeck {
+    //             rustc_mir_transform::check_unsafety::check_unsafety(tcx, def_id);
+    //         }
+    //         tcx.ensure().has_ffi_unwind_calls(def_id);
 
-            // If we need to codegen, ensure that we emit all errors from
-            // `mir_drops_elaborated_and_const_checked` now, to avoid discovering
-            // them later during codegen.
-            if tcx.sess.opts.output_types.should_codegen()
-                || tcx.hir().body_const_context(def_id).is_some()
-            {
-                tcx.ensure().mir_drops_elaborated_and_const_checked(def_id);
-                tcx.ensure().unused_generic_params(ty::InstanceDef::Item(def_id.to_def_id()));
-            }
-        }
-    });
+    //         // If we need to codegen, ensure that we emit all errors from
+    //         // `mir_drops_elaborated_and_const_checked` now, to avoid discovering
+    //         // them later during codegen.
+    //         if tcx.sess.opts.output_types.should_codegen()
+    //             || tcx.hir().body_const_context(def_id).is_some()
+    //         {
+    //             tcx.ensure().mir_drops_elaborated_and_const_checked(def_id);
+    //             tcx.ensure().unused_generic_params(ty::InstanceDef::Item(def_id.to_def_id()));
+    //         }
+    //     }
+    // });
 
-    tcx.hir().par_body_owners(|def_id| {
-        if tcx.is_coroutine(def_id.to_def_id()) {
-            tcx.ensure().mir_coroutine_witnesses(def_id);
-            tcx.ensure().check_coroutine_obligations(def_id);
-        }
-    });
+    // tcx.hir().par_body_owners(|def_id| {
+    //     if tcx.is_coroutine(def_id.to_def_id()) {
+    //         tcx.ensure().mir_coroutine_witnesses(def_id);
+    //         tcx.ensure().check_coroutine_obligations(def_id);
+    //     }
+    // });
 
-    sess.time("layout_testing", || layout_test::test_layout(tcx));
-    sess.time("abi_testing", || abi_test::test_abi(tcx));
+    // sess.time("layout_testing", || layout_test::test_layout(tcx));
+    // sess.time("abi_testing", || abi_test::test_abi(tcx));
 
-    // Avoid overwhelming user with errors if borrow checking failed.
-    // I'm not sure how helpful this is, to be honest, but it avoids a
-    // lot of annoying errors in the ui tests (basically,
-    // lint warnings and so on -- kindck used to do this abort, but
-    // kindck is gone now). -nmatsakis
-    if let Some(reported) = sess.dcx().has_errors() {
-        return Err(reported);
-    }
+    // // Avoid overwhelming user with errors if borrow checking failed.
+    // // I'm not sure how helpful this is, to be honest, but it avoids a
+    // // lot of annoying errors in the ui tests (basically,
+    // // lint warnings and so on -- kindck used to do this abort, but
+    // // kindck is gone now). -nmatsakis
+    // if let Some(reported) = sess.dcx().has_errors() {
+    //     return Err(reported);
+    // }
 
-    sess.time("misc_checking_3", || {
-        parallel!(
-            {
-                tcx.ensure().effective_visibilities(());
+    // sess.time("misc_checking_3", || {
+    //     parallel!(
+    //         {
+    //             tcx.ensure().effective_visibilities(());
 
-                parallel!(
-                    {
-                        tcx.ensure().check_private_in_public(());
-                    },
-                    {
-                        tcx.hir()
-                            .par_for_each_module(|module| tcx.ensure().check_mod_deathness(module));
-                    },
-                    {
-                        sess.time("lint_checking", || {
-                            rustc_lint::check_crate(tcx);
-                        });
-                    },
-                    {
-                        tcx.ensure().clashing_extern_declarations(());
-                    }
-                );
-            },
-            {
-                sess.time("privacy_checking_modules", || {
-                    tcx.hir().par_for_each_module(|module| {
-                        tcx.ensure().check_mod_privacy(module);
-                    });
-                });
-            }
-        );
+    //             parallel!(
+    //                 {
+    //                     tcx.ensure().check_private_in_public(());
+    //                 },
+    //                 {
+    //                     tcx.hir()
+    //                         .par_for_each_module(|module| tcx.ensure().check_mod_deathness(module));
+    //                 },
+    //                 {
+    //                     sess.time("lint_checking", || {
+    //                         rustc_lint::check_crate(tcx);
+    //                     });
+    //                 },
+    //                 {
+    //                     tcx.ensure().clashing_extern_declarations(());
+    //                 }
+    //             );
+    //         },
+    //         {
+    //             sess.time("privacy_checking_modules", || {
+    //                 tcx.hir().par_for_each_module(|module| {
+    //                     tcx.ensure().check_mod_privacy(module);
+    //                 });
+    //             });
+    //         }
+    //     );
 
-        // This check has to be run after all lints are done processing. We don't
-        // define a lint filter, as all lint checks should have finished at this point.
-        sess.time("check_lint_expectations", || tcx.ensure().check_expectations(None));
+    //     // This check has to be run after all lints are done processing. We don't
+    //     // define a lint filter, as all lint checks should have finished at this point.
+    //     sess.time("check_lint_expectations", || tcx.ensure().check_expectations(None));
 
-        // This query is only invoked normally if a diagnostic is emitted that needs any
-        // diagnostic item. If the crate compiles without checking any diagnostic items,
-        // we will fail to emit overlap diagnostics. Thus we invoke it here unconditionally.
-        let _ = tcx.all_diagnostic_items(());
-    });
+    //     // This query is only invoked normally if a diagnostic is emitted that needs any
+    //     // diagnostic item. If the crate compiles without checking any diagnostic items,
+    //     // we will fail to emit overlap diagnostics. Thus we invoke it here unconditionally.
+    //     let _ = tcx.all_diagnostic_items(());
+    // });
 
-    if sess.opts.unstable_opts.print_vtable_sizes {
-        let traits = tcx.traits(LOCAL_CRATE);
+    // if sess.opts.unstable_opts.print_vtable_sizes {
+    //     let traits = tcx.traits(LOCAL_CRATE);
 
-        for &tr in traits {
-            if !tcx.check_is_object_safe(tr) {
-                continue;
-            }
+    //     for &tr in traits {
+    //         if !tcx.check_is_object_safe(tr) {
+    //             continue;
+    //         }
 
-            let name = ty::print::with_no_trimmed_paths!(tcx.def_path_str(tr));
+    //         let name = ty::print::with_no_trimmed_paths!(tcx.def_path_str(tr));
 
-            let mut first_dsa = true;
+    //         let mut first_dsa = true;
 
-            // Number of vtable entries, if we didn't have upcasting
-            let mut entries_ignoring_upcasting = 0;
-            // Number of vtable entries needed solely for upcasting
-            let mut entries_for_upcasting = 0;
+    //         // Number of vtable entries, if we didn't have upcasting
+    //         let mut entries_ignoring_upcasting = 0;
+    //         // Number of vtable entries needed solely for upcasting
+    //         let mut entries_for_upcasting = 0;
 
-            let trait_ref = ty::Binder::dummy(ty::TraitRef::identity(tcx, tr));
+    //         let trait_ref = ty::Binder::dummy(ty::TraitRef::identity(tcx, tr));
 
-            // A slightly edited version of the code in
-            // `rustc_trait_selection::traits::vtable::vtable_entries`, that works without self
-            // type and just counts number of entries.
-            //
-            // Note that this is technically wrong, for traits which have associated types in
-            // supertraits:
-            //
-            //   trait A: AsRef<Self::T> + AsRef<()> { type T; }
-            //
-            // Without self type we can't normalize `Self::T`, so we can't know if `AsRef<Self::T>`
-            // and `AsRef<()>` are the same trait, thus we assume that those are different, and
-            // potentially over-estimate how many vtable entries there are.
-            //
-            // Similarly this is wrong for traits that have methods with possibly-impossible bounds.
-            // For example:
-            //
-            //   trait B<T> { fn f(&self) where T: Copy; }
-            //
-            // Here `dyn B<u8>` will have 4 entries, while `dyn B<String>` will only have 3.
-            // However, since we don't know `T`, we can't know if `T: Copy` holds or not,
-            // thus we lean on the bigger side and say it has 4 entries.
-            traits::vtable::prepare_vtable_segments(tcx, trait_ref, |segment| {
-                match segment {
-                    traits::vtable::VtblSegment::MetadataDSA => {
-                        // If this is the first dsa, it would be included either way,
-                        // otherwise it's needed for upcasting
-                        if std::mem::take(&mut first_dsa) {
-                            entries_ignoring_upcasting += 3;
-                        } else {
-                            entries_for_upcasting += 3;
-                        }
-                    }
+    //         // A slightly edited version of the code in
+    //         // `rustc_trait_selection::traits::vtable::vtable_entries`, that works without self
+    //         // type and just counts number of entries.
+    //         //
+    //         // Note that this is technically wrong, for traits which have associated types in
+    //         // supertraits:
+    //         //
+    //         //   trait A: AsRef<Self::T> + AsRef<()> { type T; }
+    //         //
+    //         // Without self type we can't normalize `Self::T`, so we can't know if `AsRef<Self::T>`
+    //         // and `AsRef<()>` are the same trait, thus we assume that those are different, and
+    //         // potentially over-estimate how many vtable entries there are.
+    //         //
+    //         // Similarly this is wrong for traits that have methods with possibly-impossible bounds.
+    //         // For example:
+    //         //
+    //         //   trait B<T> { fn f(&self) where T: Copy; }
+    //         //
+    //         // Here `dyn B<u8>` will have 4 entries, while `dyn B<String>` will only have 3.
+    //         // However, since we don't know `T`, we can't know if `T: Copy` holds or not,
+    //         // thus we lean on the bigger side and say it has 4 entries.
+    //         traits::vtable::prepare_vtable_segments(tcx, trait_ref, |segment| {
+    //             match segment {
+    //                 traits::vtable::VtblSegment::MetadataDSA => {
+    //                     // If this is the first dsa, it would be included either way,
+    //                     // otherwise it's needed for upcasting
+    //                     if std::mem::take(&mut first_dsa) {
+    //                         entries_ignoring_upcasting += 3;
+    //                     } else {
+    //                         entries_for_upcasting += 3;
+    //                     }
+    //                 }
 
-                    traits::vtable::VtblSegment::TraitOwnEntries { trait_ref, emit_vptr } => {
-                        // Lookup the shape of vtable for the trait.
-                        let own_existential_entries =
-                            tcx.own_existential_vtable_entries(trait_ref.def_id());
+    //                 traits::vtable::VtblSegment::TraitOwnEntries { trait_ref, emit_vptr } => {
+    //                     // Lookup the shape of vtable for the trait.
+    //                     let own_existential_entries =
+    //                         tcx.own_existential_vtable_entries(trait_ref.def_id());
 
-                        // The original code here ignores the method if its predicates are
-                        // impossible. We can't really do that as, for example, all not trivial
-                        // bounds on generic parameters are impossible (since we don't know the
-                        // parameters...), see the comment above.
-                        entries_ignoring_upcasting += own_existential_entries.len();
+    //                     // The original code here ignores the method if its predicates are
+    //                     // impossible. We can't really do that as, for example, all not trivial
+    //                     // bounds on generic parameters are impossible (since we don't know the
+    //                     // parameters...), see the comment above.
+    //                     entries_ignoring_upcasting += own_existential_entries.len();
 
-                        if emit_vptr {
-                            entries_for_upcasting += 1;
-                        }
-                    }
-                }
+    //                     if emit_vptr {
+    //                         entries_for_upcasting += 1;
+    //                     }
+    //                 }
+    //             }
 
-                std::ops::ControlFlow::Continue::<std::convert::Infallible>(())
-            });
+    //             std::ops::ControlFlow::Continue::<std::convert::Infallible>(())
+    //         });
 
-            sess.code_stats.record_vtable_size(
-                tr,
-                &name,
-                VTableSizeInfo {
-                    trait_name: name.clone(),
-                    entries: entries_ignoring_upcasting + entries_for_upcasting,
-                    entries_ignoring_upcasting,
-                    entries_for_upcasting,
-                    upcasting_cost_percent: entries_for_upcasting as f64
-                        / entries_ignoring_upcasting as f64
-                        * 100.,
-                },
-            )
-        }
-    }
+    //         sess.code_stats.record_vtable_size(
+    //             tr,
+    //             &name,
+    //             VTableSizeInfo {
+    //                 trait_name: name.clone(),
+    //                 entries: entries_ignoring_upcasting + entries_for_upcasting,
+    //                 entries_ignoring_upcasting,
+    //                 entries_for_upcasting,
+    //                 upcasting_cost_percent: entries_for_upcasting as f64
+    //                     / entries_ignoring_upcasting as f64
+    //                     * 100.,
+    //             },
+    //         )
+    //     }
+    // }
 
     Ok(())
 }
